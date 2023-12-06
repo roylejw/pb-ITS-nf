@@ -517,7 +517,7 @@ process dada2_denoise {
     --o-table dada2-ccs_table.qza \
     --o-representative-sequences dada2-ccs_rep.qza \
     --o-denoising-stats dada2-ccs_stats.qza \
-    --p-min-trunc-len 0 \
+    --p-trunc-len 0 \
     --p-max-ee $params.max_ee \
     --p-n-threads $task.cpus \
     --p-pooling-method \'$params.pooling_method\'
