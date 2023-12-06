@@ -1,4 +1,4 @@
-# HiFi Full-length 16S analysis with pb-16S-nf
+# HiFi Full-length ITS analysis, using the pb-16S-nf pipeline as a backbone
 
 - Table of Contents
   * [Workflow overview and output](#workflow-overview-and-output)
@@ -10,21 +10,16 @@
   * [References](#references)
   * [DISCLAIMER](#disclaimer)
 
-## The pipeline is currently under active development; we welcome your feedback to help improve it.
+## The pipeline is currently under active development.
 
 ## Workflow overview and output
 
 ![alt text](misc/pipeline_workflow.png "Workflow diagram")
 
-This Nextflow pipeline is designed to process PacBio HiFi full-length 16S data into high- quality amplicon sequence variants (ASVs) using `QIIME 2` and `DADA2`. 
+This Nextflow pipeline is designed to process PacBio HiFi full-length ITS data into high- quality amplicon sequence variants (ASVs) using `QIIME 2` and `DADA2`. 
 The pipeline provides a set of visualizations using the `QIIME 2` framework for interactive plotting. The pipeline generates an HTML report for
 the important statistics and top taxonomies. The outputs and stages of this pipeline are documented [here](pipeline_overview.md).
 
-We provide a sample report generated using this pipeline based on 8 replicates from the ATCC MSA-1003 
-mock community sequenced on a Sequel II system ([Link](https://www.pacb.com/connect/datasets/)). Right-click this 
-[link](examples/results/visualize_biom.html?raw=1), save it on 
-your computer, then double-click to open the sample report. All other important outputs from the pipeline are available
-in the [`examples`](examples) folder when you clone this repository.
 
 ## Installation and usage
 This pipeline runs using Nextflow Version 22 and later. If you have Singularity or Docker on your
@@ -48,7 +43,7 @@ type `git pull`.
 
 ```
 git clone https://github.com/PacificBiosciences/pb-16S-nf.git
-cd pb-16S-nf
+cd pb-ITS-nf
 nextflow run main.nf --download_db
 # With docker (If you use docker, add -profile docker to all Nextflow-related command)
 nextflow run main.nf --download_db -profile docker
@@ -74,28 +69,15 @@ nextflow run main.nf --help
   cutadapt by specifying "--skip_primer_trim".
 
   Other important options:
-  --front_p    Forward primer sequence. Default to F27. (default: AGRGTTYGATYMTGGCTCAG)
-  --adapter_p    Reverse primer sequence. Default to R1492. (default: AAGTCGTAACAAGGTARCY)
-  --filterQ    Filter input reads above this Q value (default: 20).
   --downsample    Limit reads to a maximum of N reads if there are more than N reads (default: off)
   --max_ee    DADA2 max_EE parameter. Reads with number of expected errors higher than
               this value will be discarded (default: 2)
-  --minQ    DADA2 minQ parameter. Reads with any base lower than this score 
-            will be removed (default: 0)
-  --min_len    Minimum length of sequences to keep (default: 1000)
-  --max_len    Maximum length of sequences to keep (default: 1600)
-  --pooling_method    QIIME 2 pooling method for DADA2 denoise see QIIME 2 
-                      documentation for more details (default: "pseudo", alternative: "independent") 
+  --pooling_method    QIIME 2 pooling method for DADA2 denoise see QIIME 2 - Testing suggests to always use independent pooling. 
   --maxreject    max-reject parameter for VSEARCH taxonomy classification method in QIIME 2
                  (default: 100)
   --maxaccept    max-accept parameter for VSEARCH taxonomy classification method in QIIME 2
                  (default: 100)
-  --min_asv_totalfreq    Total frequency of any ASV must be above this threshold
-                         across all samples to be retained. Set this to 0 to disable filtering
-                         (default 5)
-  --min_asv_sample    ASV must exist in at least min_asv_sample to be retained. 
-                      Set this to 0 to disable. (default 1)
-  --vsearch_identity    Minimum identity to be considered as hit (default 0.97)
+  --vsearch_identity    Minimum identity to be considered as hit (default 0.8)
   --rarefaction_depth    Rarefaction curve "max-depth" parameter. By default the pipeline
                          automatically select a cut-off above the minimum of the denoised 
                          reads for >80% of the samples. This cut-off is stored in a file called
@@ -105,45 +87,15 @@ nextflow run main.nf --help
   --vsearch_cpu    Number of threads for VSEARCH taxonomy classification (default: 8)
   --cutadapt_cpu    Number of threads for primer removal using cutadapt (default: 16)
   --outdir    Output directory name (default: "results")
-  --vsearch_db	Location of VSEARCH database (e.g. silva-138-99-seqs.qza can be
-                downloaded from QIIME database)
-  --vsearch_tax    Location of VSEARCH database taxonomy (e.g. silva-138-99-tax.qza can be
-                   downloaded from QIIME database)
-  --silva_db   Location of Silva 138 database for taxonomy classification 
-  --gtdb_db    Location of GTDB r202 for taxonomy classification
-  --refseq_db    Location of RefSeq+RDP database for taxonomy classification
-  --skip_primer_trim    Skip all primers trimming (switch off cutadapt and DADA2 primers
-                        removal) (default: trim with cutadapt)
-  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: false)
+  --vsearch_db	Location of VSEARCH database 
+  --vsearch_tax    Location of VSEARCH database taxonomy 
+   --skip_primer_trim    This should be default (to be added as default soon)
+  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: false) - needs to be set, nb does not work for ITS
   --colorby    Columns in metadata TSV file to use for coloring the MDS plot
                in HTML report (default: condition)
-  --run_picrust2    Run PICRUSt2 pipeline. Note that pathway inference with 16S using PICRUSt2
-                    has not been tested systematically (default: false)
-  --download_db    Download databases needed for taxonomy classification only. Will not
-                   run the pipeline. Databases will be downloaded to a folder "databases"
-                   in the Nextflow pipeline directory.
   --publish_dir_mode    Outputs mode based on Nextflow "publishDir" directive. Specify "copy"
                         if requires hard copies. (default: symlink)
   --version    Output version
-```
-
-To test the pipeline, run the example below. Note that the database paths should be changed to their respective locations on your server if they are different. (See the parameters above.) If you 
-follow the command above, the databases will be downloaded into a `databases` folder in the `pb-16S-nf` folder
-and you do not need to specify the path. The conda environment will be created by default in the 
-`$HOME/nf_conda` folder unless changed in the `nextflow.config` file. Once the conda environment is created, it will be reused by any future run.
-
-```
-# Create sample TSV for testing
-echo -e "sample-id\tabsolute-filepath\ntest_data\t$(readlink -f test_data/test_1000_reads.fastq.gz)" > test_data/test_sample.tsv
-
-nextflow run main.nf --input test_data/test_sample.tsv \
-    --metadata test_data/test_metadata.tsv -profile conda \
-    --outdir results
-
-# To test using Singularity or docker (change singularity to docker)
-nextflow run main.nf --input test_data/test_sample.tsv \
-    --metadata test_data/test_metadata.tsv -profile singularity \
-    --outdir results
 ```
 
 To run this pipeline on your data, create the sample TSV and metadata TSV following
@@ -199,21 +151,6 @@ the pipeline considerably. On the other hand, if each sample has been sequenced 
 denoise each sample *individually* by setting a unique group for each sample (e.g. replicating
 the `sample_name` column as the `pool` column) to process the samples quickly.
 
-## Run time and compute requirements <a name="runtime"></a>
-
-We recommend at least 32 CPUs for most sample types. The run time highly depends on the
-complexity of the samples in addition to the total number of reads. Shown here are examples of
-run times for data tested with this pipeline using 32 CPUs:
-
-|     Sample types      |     Number of samples    |     Number of FL reads    |     Total ASVs    |     Pipeline run time    |     Pipeline max memory    |
-|-----------------------|--------------------------|---------------------------|-------------------|--------------------------|----------------------------|
-|     Oral              |     891                  |     8.3m                  |     5417          |     2.5h                 |     34 GB                  |
-|     Gut               |     192                  |     2.2m                  |     1593          |     2h                   |     30 GB                  |
-|     Gut               |     192                  |     2.2m                  |     10917         |     5.5h                 |     30 GB                  |
-|     Gut               |     192                  |     16.7m                 |     17293         |     13h                  |     87 GB                  |
-|     Wastewater        |     33                   |     2.14m                 |     11462         |     12h                  |     47 GB                  |
-|     Mock community    |     264                  |     12.8m                 |     84            |     4h                   |     44 GB                  |
-
 ## Frequently asked questions (FAQ) <a name="faq"></a>
 * Can I restart the pipeline?
 
@@ -237,15 +174,6 @@ run times for data tested with this pipeline using 32 CPUs:
   Without the read orientation, you will notice that the taxonomy assignments can produce
   strange results, such as archea assignment only at the highest taxonomy level.
 
-* Many of my reads are lost in the denoise stage - what's going on?
-
-  This can happen in extremely diverse communities such as soil where the ASVs are of very low abundance.
-  In each sample, the reads supporting the ASV are very low and may not pass the DADA2 threshold to qualify
-  as a cluster. In addition, DADA2 has a strict reads quality filter (maxEE parameter) that will filter
-  away reads with relatively low accuracy. 
-  See [here](https://github.com/benjjneb/dada2/issues/841) and [here](https://github.com/benjjneb/dada2/issues/1164) 
-  for discussions on DADA2 algorithm and reads loss. 
-
 * I'm getting `Conda` "Safety" error indicating a corrupted package or that some
 pipeline steps are not able to find specific command-line tools (e.g. qiime).
 
@@ -262,76 +190,6 @@ pipeline steps are not able to find specific command-line tools (e.g. qiime).
   You can try to install the QIIME 2 environment directly to inspect any error messages:
 
   `conda env create -n q2_test -f qiime2-2022.2-py38-linux-conda.yml`
-
-* I've received/downloaded 16S FASTQ files that already have the primers trimmed. Can I skip primers removal?
-
-  We recommend using the pipeline to trim the primers as it works well for HiFi sequencing
-  data. However, there are many public dataset that may already have the full length
-  primers trimmed, in which case you can specify `--skip_primer_trim` to skip
-  primer trimming. If unsure, run with the default pipeline and the cutadapt demultiplexing rate
-  (in the file `results/samples_demux_rate.tsv`) should be close to zero for all
-  samples if the primers are already trimmed.
-
-* How does the taxonomy classification work?
-
-  The "besttax" assignment uses the `assignTaxonomy` Naive-Bayes classifier function from DADA2 
-  to carry out taxonomy assignment. It uses 3 databases to classify the ASVs 
-  (requiring a minimum bootstrap of 80 using the minBoot parameter) and the priority of assignment
-  is GTDB r207, followed by Silva v138, then lastly RefSeq + RDP. This means, for example,
-  if an ASV is not assigned at Species level using GTDB, it will check if it can be assigned
-  with Silva. This ensures that we assign as many ASVs as possible.
-
-  This process is done first at Species level, then at Genus level. In addition, if any ASV
-  is assigned as "uncultured" or "metagenome" (there are many entries like this in Silva), 
-  it will go through the iterative assignment process just like with the unclassified ASVs. 
-  Note that while this method will assign a high amount of ASVs, there may be issues 
-  such as how the taxonomy is annotated in different databases. 
-
-  There is also a VSEARCH taxonomy classification using the GTDB database (r207) only in the file called 
-  `results/vsearch_merged_freq_tax.tsv` that may provide a more consistent annotation. This uses
-  the `classify-consensus-vsearch` plugin from `QIIME 2` and we use the "top-hits" approach
-  with a stringent default hit criteria (97% identity) to classify the taxonomy of ASVs.
-
-  The final report will contain statistics from either types of assignment. If you notice a large
-  discrepancy, it can be because one method fails to assign a large amount of ASVs from the
-  same genus/species. This is likely a database-related bias.
-
-* Some species in the MSA 1003 demo data are missing!
-
-  If you run this pipeline by default with PacBio's publicly available
-  192-plex replicates ATCC-MSA1003, some 0.02% bacteria may be missing depending on
-  which replicates you use due to the default `min_asv_sample` and `min_asv_totalfreq`
-  parameters. These bacteria may only have a few reads in 1/2 samples, so they are
-  prone to getting filtered out. You can set the two parameters to 0 to disable
-  filtering and the bacteria should pop out. However, in a real dataset this 
-  may result in more false-positives.
-  
-* The percentage reads classified at species is higher than genus!
-  
-  You have likely bumped into strange issues with the database. For example, there are some microbes
-  that have the taxonomy populated at species level, but all the other levels are empty. Unfortunately,
-  database curation is out of the scope of this pipeline.
-
-* Can I manually download the databases for taxonomic classification?
-
-  The pipeline taxonomy classification step requires a few databases that will be downloaded with the
-  `--download_db` parameters into a "databases" folder. All the databases are also 
-  collected on [Zenodo](https://zenodo.org/record/6912512). These databases can also be downloaded
-  manually from the following links if the download script above does not work. The GTDB database
-  for VSEARCH will require some processing using the `QIIME 2` package. See `scripts/download_db.sh` for details.
-  
-  The links for VSEARCH here are for SILVA 138 databases provided by QIIME 2 and do not require further processing. 
-  You can also use these if you do not want to use GTDB; this is the default if you run the `--download_db` command above.
-
-  - `--vsearch_db` and `--vsearch_tax` provided by the `QIIME 2` community
-    - [`silva-138-99-seqs.qza`](https://data.qiime2.org/2022.2/common/silva-138-99-seqs.qza)
-    - [`silva-138-99-tax.qza`](https://data.qiime2.org/2022.2/common/silva-138-99-tax.qza)
-  - `--silva_db` provided by `DADA2`
-    - [`silva_nr99_v138.1_wSpecies_train_set.fa.gz`](https://zenodo.org/record/4587955)
-  - `--gtdb_db` provided by `DADA2`
-    - [`GTDB_bac120_arc122_ssu_r202_fullTaxo.fa.gz`](https://zenodo.org/record/4735821)
-  - `--refseq_db` provided by `DADA2`
-    - [`RefSeq_16S_6-11-20_RDPv16_fullTaxo.fa.gz`](https://zenodo.org/record/4735821)
 
 * I want to understand more about OTU versus ASV.
 
