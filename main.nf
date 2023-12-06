@@ -87,8 +87,8 @@ params.version = false
 version = "0.6"
 if (params.version) exit 0, log.info("$version")
 params.download_db = false
-params.skip_primer_trim = false
-params.skip_nb = false
+params.skip_primer_trim = true
+params.skip_nb = true
 params.run_picrust2 = false
 params.filterQ = 20
 params.min_len = 1000
@@ -131,9 +131,9 @@ if (params.skip_primer_trim) {
 // StrainID primers
 // params.front_p = 'AGRRTTYGATYHTDGYTYAG'
 // params.adapter_p = 'AGTACYRHRARGGAANGR'
-params.pooling_method = 'pseudo'
-params.vsearch_db = "$projectDir/databases/GTDB_ssu_all_r207.qza"
-params.vsearch_tax = "$projectDir/databases/GTDB_ssu_all_r207.taxonomy.qza"
+params.pooling_method = 'independent'
+params.vsearch_db = "$projectDir/databases/unite_seq.qza"
+params.vsearch_tax = "$projectDir/databases/unite_tax.qza"
 params.silva_db = "$projectDir/databases/silva_nr99_v138.1_wSpecies_train_set.fa.gz"
 params.refseq_db = "$projectDir/databases/RefSeq_16S_6-11-20_RDPv16_fullTaxo.fa.gz"
 params.gtdb_db = "$projectDir/databases/GTDB_bac120_arc53_ssu_r207_fullTaxo.fa.gz"
@@ -508,8 +508,6 @@ process dada2_denoise {
   path "dada2-ccs_rep*.qza", emit: asv_seq
   path "dada2-ccs_table*.qza", emit: asv_freq
   path "dada2-ccs_stats*.qza", emit:asv_stats
-  path "seqtab_nochim*.rds", emit: dada2_rds
-  path "plot_error_model*.pdf"
 
   script:
   """
@@ -518,7 +516,6 @@ process dada2_denoise {
     --o-representative-sequences dada2-ccs_rep.qza \
     --o-denoising-stats dada2-ccs_stats.qza \
     --p-trunc-len 0 \
-    --p-max-ee $params.max_ee \
     --p-n-threads $task.cpus \
     --p-pooling-method \'$params.pooling_method\'
 
@@ -1208,16 +1205,16 @@ workflow pb16S {
     dada2_denoise(import_qiime2.out, params.dadaCCS_script, params.minQ)
     mergeASV(dada2_denoise.out.asv_seq.collect(), dada2_denoise.out.asv_freq.collect(), dada2_denoise.out.asv_stats.collect())
     filter_dada2(mergeASV.out.asv_freq, mergeASV.out.asv_seq)
-    dada2_qc(mergeASV.out.asv_stats, filter_dada2.out.asv_freq, metadata_file)
+    dada2_qc(dada2_denoise.out.asv_stats, mergeASV.out.asv_freq, metadata_file)
     if( params.rarefaction_depth > 0 ){
       rd = params.rarefaction_depth
-      qiime2_phylogeny_diversity(metadata_file, filter_dada2.out.asv_seq,
-          filter_dada2.out.asv_freq, rd)
+      qiime2_phylogeny_diversity(metadata_file, mergeASV.out.asv_seq,
+          mergeASV.out.asv_freq, rd)
     } else {
-      qiime2_phylogeny_diversity(metadata_file, filter_dada2.out.asv_seq,
-          filter_dada2.out.asv_freq, dada2_qc.out.rarefaction_depth)
+      qiime2_phylogeny_diversity(metadata_file, mergeASV.out.asv_seq,
+          mergeASV.out.asv_freq, dada2_qc.out.rarefaction_depth)
     }
-    dada2_rarefaction(filter_dada2.out.asv_freq, metadata_file, dada2_qc.out.alpha_depth)
+    dada2_rarefaction(mergeASV.out.asv_freq, metadata_file, dada2_qc.out.alpha_depth)
     class_tax(mergeASV.out.asv_seq, mergeASV.out.asv_freq, params.vsearch_db, params.vsearch_tax)
     if(params.skip_nb){
       nb_tax = []
@@ -1249,7 +1246,7 @@ workflow pb16S {
           qiime2_phylogeny_diversity.out.unifrac_mat, qiime2_phylogeny_diversity.out.wunifrac_mat,
           params.colorby, post_trim_readstats, params.rmd_vis_biom_script, params.rmd_helper )
     }
-    krona_plot(filter_dada2.out.asv_freq, class_tax.out.tax_vsearch)
+    krona_plot(mergeASV.out.asv_freq, class_tax.out.tax_vsearch)
   }
 }
 
