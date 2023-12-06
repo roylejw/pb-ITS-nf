@@ -1218,18 +1218,18 @@ workflow pb16S {
           filter_dada2.out.asv_freq, dada2_qc.out.rarefaction_depth)
     }
     dada2_rarefaction(filter_dada2.out.asv_freq, metadata_file, dada2_qc.out.alpha_depth)
-    class_tax(filter_dada2.out.asv_seq, filter_dada2.out.asv_freq, params.vsearch_db, params.vsearch_tax)
+    class_tax(mergeASV.out.asv_seq, mergeASV.out.asv_freq, params.vsearch_db, params.vsearch_tax)
     if(params.skip_nb){
       nb_tax = []
-      export_biom_skip_nb(filter_dada2.out.asv_freq, class_tax.out.tax_tsv) 
-      barplot(filter_dada2.out.asv_freq, class_tax.out.tax_vsearch, metadata_file, "taxonomy_barplot_vsearch.qzv")
+      export_biom_skip_nb(mergeASV.out.asv_freq, class_tax.out.tax_tsv) 
+      barplot(mergeASV.out.asv_freq, class_tax.out.tax_vsearch, metadata_file, "taxonomy_barplot_vsearch.qzv")
     } else {
-      dada2_assignTax(filter_dada2.out.asv_seq_fasta, filter_dada2.out.asv_seq, filter_dada2.out.asv_freq,
+      dada2_assignTax(filter_dada2.out.asv_seq_fasta, mergeASV.out.asv_seq, mergeASV.out.asv_freq,
           params.silva_db, params.gtdb_db, params.refseq_db, params.dadaAssign_script)
       nb_tax = dada2_assignTax.out.best_nb_tax_tsv 
-      export_biom(filter_dada2.out.asv_freq, dada2_assignTax.out.best_nb_tax, class_tax.out.tax_tsv)
-      barplot_nb(filter_dada2.out.asv_freq, dada2_assignTax.out.best_nb_tax_qza, metadata_file, "taxonomy_barplot_nb.qzv")
-      barplot(filter_dada2.out.asv_freq, class_tax.out.tax_vsearch, metadata_file, "taxonomy_barplot_vsearch.qzv")
+      export_biom(mergeASV.out.asv_freq, dada2_assignTax.out.best_nb_tax, class_tax.out.tax_tsv)
+      barplot_nb(mergeASV.out.asv_freq, dada2_assignTax.out.best_nb_tax_qza, metadata_file, "taxonomy_barplot_nb.qzv")
+      barplot(mergeASV.out.asv_freq, class_tax.out.tax_vsearch, metadata_file, "taxonomy_barplot_vsearch.qzv")
     }
     if (params.run_picrust2){
       picrust2(filter_dada2.out.asv_seq_fasta, export_biom.out.biom_vsearch)
