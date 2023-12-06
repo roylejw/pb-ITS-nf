@@ -64,9 +64,6 @@ def helpMessage() {
                 downloaded from QIIME database)
   --vsearch_tax    Location of VSEARCH database taxonomy (e.g. silva-138-99-tax.qza can be
                    downloaded from QIIME database)
-  --silva_db   Location of Silva 138 database for taxonomy classification 
-  --gtdb_db    Location of GTDB r202 for taxonomy classification
-  --refseq_db    Location of RefSeq+RDP database for taxonomy classification
   --skip_primer_trim    Skip all primers trimming (switch off cutadapt and DADA2 primers
                         removal) (default: trim with cutadapt)
   --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: false)
@@ -145,7 +142,7 @@ params.maxaccept = 100
 params.rarefaction_depth = null
 params.dada2_cpu = 8
 params.vsearch_cpu = 8
-params.vsearch_identity = 0.97
+params.vsearch_identity = 0.8
 params.outdir = "results"
 params.max_ee = 2
 params.rmd_vis_biom_script= "$projectDir/scripts/visualize_biom.Rmd"
@@ -198,7 +195,7 @@ process write_log{
   conda (params.enable_conda ? "$projectDir/env/pb-16s-pbtools.yml" : null)
   container "kpinpb/pb-16s-nf-tools:latest" 
   publishDir "$params.outdir", mode: params.publish_dir_mode
-  label 'cpu_def'
+  label 'cpu8'
 
   input:
   val(logs)
@@ -500,6 +497,7 @@ process dada2_denoise {
   container "kpinpb/pb-16s-nf-qiime:v0.7"
   publishDir "$params.outdir/dada2", mode: params.publish_dir_mode
   cpus params.dada2_cpu
+  memory '150GB'
 
   input:
   path samples_qza
@@ -515,22 +513,12 @@ process dada2_denoise {
 
   script:
   """
-  # Use custom script that can skip primer trimming
-  mkdir -p dada2_custom_script
-  cp $dada_ccs_script dada2_custom_script/run_dada.R
-  # sed 's/minQ\\ =\\ 0/minQ=$minQ/g' dada2_custom_script/run_dada_ccs_original.R > \
-  #   dada2_custom_script/run_dada_ccs.R
-  chmod +x dada2_custom_script/run_dada.R
-  export PATH="./dada2_custom_script:\$PATH"
-  which run_dada.R
-  qiime dada2 denoise-ccs --i-demultiplexed-seqs $samples_qza \
+  qiime dada2 denoise-single --i-demultiplexed-seqs $samples_qza \
     --o-table dada2-ccs_table.qza \
     --o-representative-sequences dada2-ccs_rep.qza \
     --o-denoising-stats dada2-ccs_stats.qza \
-    --p-min-len $params.min_len --p-max-len $params.max_len \
+    --p-min-trunc-len 0 \
     --p-max-ee $params.max_ee \
-    --p-front 'none' \
-    --p-adapter 'none' \
     --p-n-threads $task.cpus \
     --p-pooling-method \'$params.pooling_method\'
 
@@ -545,6 +533,7 @@ process mergeASV {
   container "kpinpb/pb-16s-nf-qiime:v0.7"
   publishDir "$params.outdir/dada2", mode: params.publish_dir_mode
   cpus params.dada2_cpu
+  memory '150GB'
 
   input:
   path "dada2-ccs_rep*.qza"
@@ -584,51 +573,19 @@ process filter_dada2 {
   container "kpinpb/pb-16s-nf-qiime:v0.7"
   publishDir "$params.outdir/dada2", mode: params.publish_dir_mode
   cpus params.dada2_cpu
+  memory '150GB'
 
   input:
   path asv_table
   path asv_seq
 
   output:
-  path "dada2-ccs_rep_filtered.qza", emit: asv_seq
-  path "dada2-ccs_table_filtered.qza", emit: asv_freq
   path "dada2_ASV.fasta", emit:asv_seq_fasta
 
   script:
   """
-  if [ $params.min_asv_sample -gt 0 ] && [ $params.min_asv_totalfreq -gt 0 ]
-  then
-    # Filter ASVs and sequences
-    qiime feature-table filter-features \
-      --i-table $asv_table \
-      --p-min-frequency $params.min_asv_totalfreq \
-      --p-min-samples $params.min_asv_sample \
-      --p-filter-empty-samples \
-      --o-filtered-table dada2-ccs_table_filtered.qza
-  elif [ $params.min_asv_sample -gt 0 ] && [ $params.min_asv_totalfreq -eq 0 ]
-  then
-    qiime feature-table filter-features \
-      --i-table $asv_table \
-      --p-min-samples $params.min_asv_sample \
-      --p-filter-empty-samples \
-      --o-filtered-table dada2-ccs_table_filtered.qza
-  elif [ $params.min_asv_sample -eq 0 ] && [ $params.min_asv_totalfreq -gt 0 ]
-  then
-    qiime feature-table filter-features \
-      --i-table $asv_table \
-      --p-min-frequency $params.min_asv_totalfreq \
-      --p-filter-empty-samples \
-      --o-filtered-table dada2-ccs_table_filtered.qza
-  else
-    mv $asv_table dada2-ccs_table_filtered.qza
-  fi
-  qiime feature-table filter-seqs \
-    --i-data $asv_seq \
-    --i-table dada2-ccs_table_filtered.qza \
-    --o-filtered-data dada2-ccs_rep_filtered.qza
-
   # Export FASTA file for ASVs
-  qiime tools export --input-path dada2-ccs_rep_filtered.qza \
+  qiime tools export --input-path dada2-ccs_rep_merged.qza \
     --output-path .
   mv dna-sequences.fasta dada2_ASV.fasta
   """
@@ -642,6 +599,7 @@ process dada2_assignTax {
   publishDir "$params.outdir/results", pattern: 'best_tax*', mode: params.publish_dir_mode
   publishDir "$params.outdir/nb_tax", mode: params.publish_dir_mode
   cpus params.vsearch_cpu
+  memory '150GB'
 
   input:
   path asv_seq_fasta
@@ -690,6 +648,7 @@ process dada2_qc {
   container "kpinpb/pb-16s-nf-qiime:v0.7"
   publishDir "$params.outdir/results", mode: params.publish_dir_mode
   label 'cpu_def'
+  memory '150GB'
 
   input:
   path asv_stats
@@ -870,6 +829,7 @@ process class_tax {
   container "kpinpb/pb-16s-nf-qiime:v0.7"
   publishDir "$params.outdir/results", mode: params.publish_dir_mode
   cpus params.vsearch_cpu
+  memory '150GB'
 
   input:
   path asv_seq
@@ -985,6 +945,8 @@ process picrust2 {
   container "kpinpb/pb-16s-nf-tools:latest"
   label 'cpu32'
   publishDir "$params.outdir/results", mode: params.publish_dir_mode
+  cpus params.vsearch_cpu
+  memory '150GB'
 
   input:
   path dada2_asv
