@@ -1,0 +1,33 @@
+
+  Parameters set for pb-16S-nf pipeline for PacBio HiFi 16S
+  =========================================================
+  Number of samples in samples TSV: 5
+  Filter input reads above Q: 20
+  Trim primers with cutadapt: Yes
+  Limit to N reads if exceeding N reads (0 = disabled): 0
+  Forward primer: ACCWGCGGARGGATCATTA
+  Reverse primer: CCTSCSCTTANTDATATGC
+  Minimum amplicon length filtered in DADA2: 200
+  Maximum amplicon length filtered in DADA2: 3000
+  maxEE parameter for DADA2 filterAndTrim: 2
+  minQ parameter for DADA2 filterAndTrim: 0
+  Pooling method for DADA2 denoise process: independent
+  Minimum number of samples required to keep any ASV: 1
+  Minimum number of reads required to keep any ASV: 5 
+  Taxonomy sequence database for VSEARCH: /mnt/efs/fs1/pb-ITS-nf/../ITS-test/databases/unite_seq.qza
+  Taxonomy annotation database for VSEARCH: /mnt/efs/fs1/pb-ITS-nf/../ITS-test/databases/unite_tax.qza
+  Skip Naive Bayes classification: true
+  SILVA database for Naive Bayes classifier: /mnt/efs/fs1/pb-ITS-nf/databases/silva_nr99_v138.1_wSpecies_train_set.fa.gz
+  GTDB database for Naive Bayes classifier: /mnt/efs/fs1/pb-ITS-nf/databases/GTDB_bac120_arc53_ssu_r207_fullTaxo.fa.gz
+  RefSeq + RDP database for Naive Bayes classifier: /mnt/efs/fs1/pb-ITS-nf/databases/RefSeq_16S_6-11-20_RDPv16_fullTaxo.fa.gz
+  VSEARCH maxreject: 100
+  VSEARCH maxaccept: 100
+  VSEARCH perc-identity: 0.96
+  QIIME 2 rarefaction curve sampling depth: null
+  Number of threads specified for cutadapt: 16
+  Number of threads specified for DADA2: 94
+  Number of threads specified for VSEARCH: 94
+  Script location for HTML report generation: /mnt/efs/fs1/pb-ITS-nf/scripts/visualize_biom.Rmd
+  Container enabled via docker/singularity: true
+  Version of Nextflow pipeline: 0.6
+
