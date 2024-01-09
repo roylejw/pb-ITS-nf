@@ -42,9 +42,8 @@ After installing Nextflow, clone the repository and download databases using the
 type `git pull`.
 
 ```
-git clone https://github.com/PacificBiosciences/pb-16S-nf.git
+git clone https://github.com/roylejw/pb-ITS-nf.git
 cd pb-ITS-nf
-nextflow run main.nf --download_db
 # With docker (If you use docker, add -profile docker to all Nextflow-related command)
 nextflow run main.nf --download_db -profile docker
 ```
@@ -77,24 +76,24 @@ nextflow run main.nf --help
                  (default: 100)
   --maxaccept    max-accept parameter for VSEARCH taxonomy classification method in QIIME 2
                  (default: 100)
-  --vsearch_identity    Minimum identity to be considered as hit (default 0.8)
+  --vsearch_identity    Minimum identity to be considered as hit (default 0.95)
   --rarefaction_depth    Rarefaction curve "max-depth" parameter. By default the pipeline
                          automatically select a cut-off above the minimum of the denoised 
                          reads for >80% of the samples. This cut-off is stored in a file called
                          "rarefaction_depth_suggested.txt" file in the results folder
                          (default: null)
-  --dada2_cpu    Number of threads for DADA2 denoising (default: 8)
-  --vsearch_cpu    Number of threads for VSEARCH taxonomy classification (default: 8)
+  --dada2_cpu    Number of threads for DADA2 denoising (default: 94)
+  --vsearch_cpu    Number of threads for VSEARCH taxonomy classification (default: 94)
   --cutadapt_cpu    Number of threads for primer removal using cutadapt (default: 16)
   --outdir    Output directory name (default: "results")
   --vsearch_db	Location of VSEARCH database 
   --vsearch_tax    Location of VSEARCH database taxonomy 
-   --skip_primer_trim    This should be default (to be added as default soon)
-  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: false) - needs to be set, nb does not work for ITS
+   --skip_primer_trim    Trims primers provided (default: true)
+  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: true)
   --colorby    Columns in metadata TSV file to use for coloring the MDS plot
                in HTML report (default: condition)
   --publish_dir_mode    Outputs mode based on Nextflow "publishDir" directive. Specify "copy"
-                        if requires hard copies. (default: symlink)
+                        if requires hard copies. (default: copy)
   --version    Output version
 ```
 
@@ -120,36 +119,6 @@ generate the workflow DAG and resources reports to help in benchmarking the reso
 required. See the `report_results` folder created after the pipeline finishes running 
 for the DAG and resources report.
 
-## Speeding up `DADA2` denoise <a name="pooling"></a>
-
-By default, the pipeline pools all samples into one single `qza` file for `DADA2` denoise (using
-the default pseudo-pooling approach by `DADA2`). This is designed to maximize the sensitivity to
-low frequency ASVs. For example, an ASV with just 2 reads in sample 1 may be discarded, but if the same
-exact ASV is seen in another sample, this gives the algorithm higher confidence that it is real.
-However, when the samples are highly diverse (such as with environmental samples), this can become very slow.
-
-If a (possibly) minor loss in sensitivity is acceptable, the pipeline allows you to "split" the
-input samples into different groups that will be denoised separately. This is done using a `pool`
-column in the `metadata.tsv` input. Example:
-
-```
-sample_name     condition       pool
-bc1005_bc1056   RepA    RepA
-bc1005_bc1057   RepA    RepA
-bc1005_bc1062   RepA    RepA
-bc1005_bc1075   RepA    RepA
-bc1005_bc1100   RepB    RepB
-bc1007_bc1075   RepB    RepB
-bc1020_bc1059   RepB    RepB
-bc1024_bc1111   RepB    RepB
-```
-
-The TSV above will split the 8 samples into two groups (RepA and RepB) and denoise them separately.
-After denoising, all denoised ASVs and statistics are merged again for downstream filtering and
-processing. This allows you to maximize sensitivity *within* a group of samples and speed up
-the pipeline considerably. On the other hand, if each sample has been sequenced deeply, you can
-denoise each sample *individually* by setting a unique group for each sample (e.g. replicating
-the `sample_name` column as the `pool` column) to process the samples quickly.
 
 ## Frequently asked questions (FAQ) <a name="faq"></a>
 * Can I restart the pipeline?
