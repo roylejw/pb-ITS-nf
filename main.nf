@@ -2,13 +2,12 @@
 ===============================================================================
 
 Nextflow pipeline using QIIME 2 to process CCS data via DADA2 plugin. Takes
-in demultiplexed ITS-28S amplicon sequencing FASTQ file.
+in demultiplexed 16S amplicon sequencing FASTQ file.
 
 ===============================================================================
 
 Author: Khi Pin, Chua
-Modified for ITS by: Jack Royle
-Updated: 2024-01-09
+Updated: 2023-3-31
 */
 
 nextflow.enable.dsl=2
@@ -30,18 +29,18 @@ def helpMessage() {
   cutadapt by specifying "--skip_primer_trim".
 
   Other important options:
-  --front_p    Forward primer sequence. Default to ITS1catta. (default: ACCWGCGGARGGATCATTA)
-  --adapter_p    Reverse primer sequence. Default to ITS2. (default: CCTSCSCTTANTDATATGC)
+  --front_p    Forward primer sequence. Default to F27. (default: AGRGTTYGATYMTGGCTCAG)
+  --adapter_p    Reverse primer sequence. Default to R1492. (default: AAGTCGTAACAAGGTARCY)
   --filterQ    Filter input reads above this Q value (default: 20).
   --downsample    Limit reads to a maximum of N reads if there are more than N reads (default: off)
   --max_ee    DADA2 max_EE parameter. Reads with number of expected errors higher than
               this value will be discarded (default: 2)
   --minQ    DADA2 minQ parameter. Reads with any base lower than this score 
             will be removed (default: 0)
-  --min_len    Minimum length of sequences to keep (default: 200)
-  --max_len    Maximum length of sequences to keep (default: 4000)
+  --min_len    Minimum length of sequences to keep (default: 1000)
+  --max_len    Maximum length of sequences to keep (default: 1600)
   --pooling_method    QIIME 2 pooling method for DADA2 denoise see QIIME 2 
-                      documentation for more details (default: "indpendent") 
+                      documentation for more details (default: "pseudo", alternative: "independent") 
   --maxreject    max-reject parameter for VSEARCH taxonomy classification method in QIIME 2
                  (default: 100)
   --maxaccept    max-accept parameter for VSEARCH taxonomy classification method in QIIME 2
@@ -51,14 +50,14 @@ def helpMessage() {
                          (default 5)
   --min_asv_sample    ASV must exist in at least min_asv_sample to be retained. 
                       Set this to 0 to disable. (default 1)
-  --vsearch_identity    Minimum identity to be considered as hit (default 0.95)
+  --vsearch_identity    Minimum identity to be considered as hit (default 0.97)
   --rarefaction_depth    Rarefaction curve "max-depth" parameter. By default the pipeline
                          automatically select a cut-off above the minimum of the denoised 
                          reads for >80% of the samples. This cut-off is stored in a file called
                          "rarefaction_depth_suggested.txt" file in the results folder
                          (default: null)
-  --dada2_cpu    Number of threads for DADA2 denoising (default: 94)
-  --vsearch_cpu    Number of threads for VSEARCH taxonomy classification (default: 94)
+  --dada2_cpu    Number of threads for DADA2 denoising (default: 8)
+  --vsearch_cpu    Number of threads for VSEARCH taxonomy classification (default: 8)
   --cutadapt_cpu    Number of threads for primer removal using cutadapt (default: 16)
   --outdir    Output directory name (default: "results")
   --vsearch_db	Location of VSEARCH database (e.g. silva-138-99-seqs.qza can be
@@ -67,13 +66,16 @@ def helpMessage() {
                    downloaded from QIIME database)
   --skip_primer_trim    Skip all primers trimming (switch off cutadapt and DADA2 primers
                         removal) (default: trim with cutadapt)
-  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: true)
+  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: false)
   --colorby    Columns in metadata TSV file to use for coloring the MDS plot
                in HTML report (default: condition)
   --run_picrust2    Run PICRUSt2 pipeline. Note that pathway inference with 16S using PICRUSt2
                     has not been tested systematically (default: false)
+  --download_db    Download databases needed for taxonomy classification only. Will not
+                   run the pipeline. Databases will be downloaded to a folder "databases"
+                   in the Nextflow pipeline directory.
   --publish_dir_mode    Outputs mode based on Nextflow "publishDir" directive. Specify "copy"
-                        if requires hard copies. (default: copy)
+                        if requires hard copies. (default: symlink)
   --version    Output version
   """
 }
@@ -82,7 +84,7 @@ def helpMessage() {
 params.help = false
 if (params.help) exit 0, helpMessage()
 params.version = false
-version = "1"
+version = "0.6"
 if (params.version) exit 0, log.info("$version")
 params.download_db = false
 params.skip_primer_trim = false
@@ -90,7 +92,7 @@ params.skip_nb = true
 params.run_picrust2 = false
 params.filterQ = 20
 params.min_len = 200
-params.max_len = 4000
+params.max_len = 3000
 params.colorby = "condition"
 params.skip_phylotree = false
 params.minQ = 0
@@ -123,12 +125,12 @@ if (params.skip_primer_trim) {
   trim_cutadapt = "Yes"
   // These are default ITS1-ITS2 adapters
   params.front_p = 'ACCWGCGGARGGATCATTA'
-  params.adapter_p = 'CCTSCSCTTANTDATATGC'
+  params.adapter_p = 'GCATATHANTAAGSGSAGG'
 }
 // Hidden parameters in case need to trim with DADA2 removePrimers function
 // StrainID primers
 // params.front_p = 'ACCWGCGGARGGATCATTA'
-// params.adapter_p = 'CCTSCSCTTANTDATATGC'
+// params.adapter_p = 'GCATATHANTAAGSGSAGG'
 params.pooling_method = 'independent'
 params.vsearch_db = "$projectDir/../ITS-test/databases/unite_seq.qza"
 params.vsearch_tax = "$projectDir/../ITS-test/databases/unite_tax.qza"
@@ -140,7 +142,7 @@ params.maxaccept = 100
 params.rarefaction_depth = null
 params.dada2_cpu = 8
 params.vsearch_cpu = 8
-params.vsearch_identity = 0.95
+params.vsearch_identity = 0.97
 params.outdir = "results"
 params.max_ee = 2
 params.rmd_vis_biom_script= "$projectDir/scripts/visualize_biom.Rmd"
@@ -266,8 +268,7 @@ process cutadapt {
   cutadapt -g "${params.front_p}...${params.adapter_p}" \
     ${sampleFASTQ} \
     -o ${sampleID}.trimmed.fastq.gz \
-    -j ${task.cpus} --trimmed-only --revcomp -e 0.3 \
-	--match-read-wildcards \
+    -j ${task.cpus} --trimmed-only --revcomp \
     --json ${sampleID}.cutadapt.report
 
   input_read=`jq -r '.read_counts | .input' ${sampleID}.cutadapt.report`
