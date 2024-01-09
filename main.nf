@@ -2,7 +2,7 @@
 ===============================================================================
 
 Nextflow pipeline using QIIME 2 to process CCS data via DADA2 plugin. Takes
-in demultiplexed 16S amplicon sequencing FASTQ file.
+in demultiplexed ITS-28S amplicon sequencing FASTQ file.
 
 ===============================================================================
 
