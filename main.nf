@@ -7,7 +7,8 @@ in demultiplexed 16S amplicon sequencing FASTQ file.
 ===============================================================================
 
 Author: Khi Pin, Chua
-Updated: 2023-3-31
+Modified for ITS by: Jack Royle
+Updated: 2024-01-09
 */
 
 nextflow.enable.dsl=2
@@ -29,18 +30,18 @@ def helpMessage() {
   cutadapt by specifying "--skip_primer_trim".
 
   Other important options:
-  --front_p    Forward primer sequence. Default to F27. (default: AGRGTTYGATYMTGGCTCAG)
-  --adapter_p    Reverse primer sequence. Default to R1492. (default: AAGTCGTAACAAGGTARCY)
+  --front_p    Forward primer sequence. Default to ITS1catta. (default: ACCWGCGGARGGATCATTA)
+  --adapter_p    Reverse primer sequence. Default to ITS2. (default: CCTSCSCTTANTDATATGC)
   --filterQ    Filter input reads above this Q value (default: 20).
   --downsample    Limit reads to a maximum of N reads if there are more than N reads (default: off)
   --max_ee    DADA2 max_EE parameter. Reads with number of expected errors higher than
               this value will be discarded (default: 2)
   --minQ    DADA2 minQ parameter. Reads with any base lower than this score 
             will be removed (default: 0)
-  --min_len    Minimum length of sequences to keep (default: 1000)
-  --max_len    Maximum length of sequences to keep (default: 1600)
+  --min_len    Minimum length of sequences to keep (default: 200)
+  --max_len    Maximum length of sequences to keep (default: 4000)
   --pooling_method    QIIME 2 pooling method for DADA2 denoise see QIIME 2 
-                      documentation for more details (default: "pseudo", alternative: "independent") 
+                      documentation for more details (default: "indpendent") 
   --maxreject    max-reject parameter for VSEARCH taxonomy classification method in QIIME 2
                  (default: 100)
   --maxaccept    max-accept parameter for VSEARCH taxonomy classification method in QIIME 2
@@ -50,14 +51,14 @@ def helpMessage() {
                          (default 5)
   --min_asv_sample    ASV must exist in at least min_asv_sample to be retained. 
                       Set this to 0 to disable. (default 1)
-  --vsearch_identity    Minimum identity to be considered as hit (default 0.97)
+  --vsearch_identity    Minimum identity to be considered as hit (default 0.95)
   --rarefaction_depth    Rarefaction curve "max-depth" parameter. By default the pipeline
                          automatically select a cut-off above the minimum of the denoised 
                          reads for >80% of the samples. This cut-off is stored in a file called
                          "rarefaction_depth_suggested.txt" file in the results folder
                          (default: null)
-  --dada2_cpu    Number of threads for DADA2 denoising (default: 8)
-  --vsearch_cpu    Number of threads for VSEARCH taxonomy classification (default: 8)
+  --dada2_cpu    Number of threads for DADA2 denoising (default: 94)
+  --vsearch_cpu    Number of threads for VSEARCH taxonomy classification (default: 94)
   --cutadapt_cpu    Number of threads for primer removal using cutadapt (default: 16)
   --outdir    Output directory name (default: "results")
   --vsearch_db	Location of VSEARCH database (e.g. silva-138-99-seqs.qza can be
@@ -66,16 +67,13 @@ def helpMessage() {
                    downloaded from QIIME database)
   --skip_primer_trim    Skip all primers trimming (switch off cutadapt and DADA2 primers
                         removal) (default: trim with cutadapt)
-  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: false)
+  --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: true)
   --colorby    Columns in metadata TSV file to use for coloring the MDS plot
                in HTML report (default: condition)
   --run_picrust2    Run PICRUSt2 pipeline. Note that pathway inference with 16S using PICRUSt2
                     has not been tested systematically (default: false)
-  --download_db    Download databases needed for taxonomy classification only. Will not
-                   run the pipeline. Databases will be downloaded to a folder "databases"
-                   in the Nextflow pipeline directory.
   --publish_dir_mode    Outputs mode based on Nextflow "publishDir" directive. Specify "copy"
-                        if requires hard copies. (default: symlink)
+                        if requires hard copies. (default: copy)
   --version    Output version
   """
 }
@@ -84,15 +82,15 @@ def helpMessage() {
 params.help = false
 if (params.help) exit 0, helpMessage()
 params.version = false
-version = "0.6"
+version = "1"
 if (params.version) exit 0, log.info("$version")
 params.download_db = false
-params.skip_primer_trim = true
+params.skip_primer_trim = false
 params.skip_nb = true
 params.run_picrust2 = false
 params.filterQ = 20
-params.min_len = 1000
-params.max_len = 1600
+params.min_len = 200
+params.max_len = 4000
 params.colorby = "condition"
 params.skip_phylotree = false
 params.minQ = 0
@@ -123,17 +121,17 @@ if (params.skip_primer_trim) {
   trim_cutadapt = "No"
 } else {
   trim_cutadapt = "Yes"
-  // These are default V1-V9 adapter
-  params.front_p = 'AGRGTTYGATYMTGGCTCAG'
-  params.adapter_p = 'AAGTCGTAACAAGGTARCY'
+  // These are default ITS1-ITS2 adapters
+  params.front_p = 'ACCWGCGGARGGATCATTA'
+  params.adapter_p = 'CCTSCSCTTANTDATATGC'
 }
 // Hidden parameters in case need to trim with DADA2 removePrimers function
 // StrainID primers
-// params.front_p = 'AGRRTTYGATYHTDGYTYAG'
-// params.adapter_p = 'AGTACYRHRARGGAANGR'
+// params.front_p = 'ACCWGCGGARGGATCATTA'
+// params.adapter_p = 'CCTSCSCTTANTDATATGC'
 params.pooling_method = 'independent'
-params.vsearch_db = "$projectDir/databases/unite_seq.qza"
-params.vsearch_tax = "$projectDir/databases/unite_tax.qza"
+params.vsearch_db = "$projectDir/../ITS-test/databases/unite_seq.qza"
+params.vsearch_tax = "$projectDir/../ITS-test/databases/unite_tax.qza"
 params.silva_db = "$projectDir/databases/silva_nr99_v138.1_wSpecies_train_set.fa.gz"
 params.refseq_db = "$projectDir/databases/RefSeq_16S_6-11-20_RDPv16_fullTaxo.fa.gz"
 params.gtdb_db = "$projectDir/databases/GTDB_bac120_arc53_ssu_r207_fullTaxo.fa.gz"
@@ -142,7 +140,7 @@ params.maxaccept = 100
 params.rarefaction_depth = null
 params.dada2_cpu = 8
 params.vsearch_cpu = 8
-params.vsearch_identity = 0.8
+params.vsearch_identity = 0.95
 params.outdir = "results"
 params.max_ee = 2
 params.rmd_vis_biom_script= "$projectDir/scripts/visualize_biom.Rmd"
@@ -152,7 +150,7 @@ params.cutadapt_cpu = 16
 params.primer_fasta = "$projectDir/scripts/16S_primers.fasta"
 params.dadaCCS_script = "$projectDir/scripts/run_dada_2023.2.R"
 params.dadaAssign_script = "$projectDir/scripts/dada2_assign_tax.R"
-params.publish_dir_mode = "symlink"
+params.publish_dir_mode = "copy"
 
 log_text = """
   Parameters set for pb-16S-nf pipeline for PacBio HiFi 16S
@@ -268,7 +266,8 @@ process cutadapt {
   cutadapt -g "${params.front_p}...${params.adapter_p}" \
     ${sampleFASTQ} \
     -o ${sampleID}.trimmed.fastq.gz \
-    -j ${task.cpus} --trimmed-only --revcomp -e 0.1 \
+    -j ${task.cpus} --trimmed-only --revcomp -e 0.3 \
+	--match-read-wildcards \
     --json ${sampleID}.cutadapt.report
 
   input_read=`jq -r '.read_counts | .input' ${sampleID}.cutadapt.report`
