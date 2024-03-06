@@ -38,17 +38,15 @@ conda install -c bioconda nextflow
 conda init
 ```
 
-After installing Nextflow, clone the repository and download databases using the following commands. To update the pipeline in the future, 
+After installing Nextflow, clone the repository using the following commands. To update the pipeline in the future, 
 type `git pull`.
 
 ```
 git clone https://github.com/roylejw/pb-ITS-nf.git
 cd pb-ITS-nf
-# With docker (If you use docker, add -profile docker to all Nextflow-related command)
-nextflow run main.nf --download_db -profile docker
 ```
 
-After downloading the databases, run the following command in the cloned folder to see the options for the pipeline:
+After downloading the databases (AGRF uses the UNITE database), run the following command in the cloned folder to see the options for the pipeline:
 
 ```
 nextflow run main.nf --help
@@ -88,7 +86,7 @@ nextflow run main.nf --help
   --outdir    Output directory name (default: "results")
   --vsearch_db	Location of VSEARCH database 
   --vsearch_tax    Location of VSEARCH database taxonomy 
-   --skip_primer_trim    Trims primers provided (default: true)
+  --skip_primer_trim    Trims primers provided (default: true)
   --skip_nb    Skip Naive-Bayes classification (only uses VSEARCH) (default: true)
   --colorby    Columns in metadata TSV file to use for coloring the MDS plot
                in HTML report (default: condition)
