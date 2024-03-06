@@ -1,5 +1,5 @@
 ---
-title: "HiFi Full-length 16S Analysis Report"
+title: "HiFi Full-length ITS Analysis Report"
 output: html_document
 params:
   merged_tax_tab_file: ""
@@ -250,7 +250,7 @@ if(params$merged_tax_tab_file != ""){
 ```
 
 ## Overall reads filtering and number of full-length reads
-* Full-length reads are defined as reads with both F27 and R1492 primers
+* Full-length reads are defined as reads with both ITS1catta and ITS2 primers - the 28S region of the read is trimmed in this analysis.
 * Note that full length counts column will only show if cutadapt was used to trim primers (default).
 ```{r, echo=FALSE}
 if (skip_cutadapt != "Yes") {
